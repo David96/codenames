@@ -1,4 +1,4 @@
-from codenames import CodeNames
+from codenames import CodeNames, WIDTH, HEIGHT
 
 import asyncio
 import json
@@ -9,7 +9,7 @@ GAME=CodeNames(['word%d' % i for i in range(25)])
 USERS={}
 
 def generate_uid():
-    uids = [uid for uid, _ in USERS]
+    uids = [uid for uid in USERS] if len(USERS) > 0 else []
     while (uid := uuid.uuid4()) in uids:
         pass
     return uid
@@ -21,19 +21,58 @@ def user_event():
     return json.dumps(
         {
             'type': 'user',
-            'users': [name for _, name in USERS]
+            'users': [name for __, name in USERS.values()]
         })
 
-def add_user(websocket):
-    USERS[generate_uid()] = (websocket, '')
+async def notify_users(msg_type):
+    if USERS:
+        if msg_type == 'user':
+            message = user_event()
+        elif msg_type == 'state':
+            message = state_event()
+        await asyncio.wait([socket.send(message) for socket, _ in USERS.values()])
 
-async def set_name(uid, name):
-    USERS[uid][1] = name
+async def send_message(message):
+    msg = json.dumps({'type':'message', 'msg': message})
+    await asyncio.wait([socket.send(msg) for socket, _ in USERS.values()])
+
+async def add_user(websocket, name):
+    uid = generate_uid()
+    USERS[uid] = (websocket, name)
+    await notify_users("user")
+    await send_message('%s joined the game!' % name)
+    return uid
 
 async def remove_user(uid):
+    name = USERS[uid][1]
     del USERS[uid]
+    await notify_users('user')
+    await send_message('%s left the game.' % name)
+
+async def open_field(uid, index):
+    GAME.open_field(index)
+    name = USERS[uid][1]
+    await notify_users('state')
+    await send_message('Field %d:%d was opened by %s' %
+            (index % WIDTH + 1, int(index / HEIGHT) + 1, name))
 
 async def serve(websocket, path):
-    pass
+    try:
+        msg = json.loads(await websocket.recv())
+        assert msg['action'] == 'set_name'
+        uid = await add_user(websocket, msg['name'])
 
-state_event()
+        await websocket.send(state_event())
+        async for message in websocket:
+            data = json.loads(message)
+            if data['action'] == 'open':
+                await open_field(uid, data['index'])
+
+    # TODO: proper error handling?!
+    finally:
+        await remove_user(uid)
+
+start_server = websockets.serve(serve, "localhost", 6789)
+
+asyncio.get_event_loop().run_until_complete(start_server)
+asyncio.get_event_loop().run_forever()
