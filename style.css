@@ -1,0 +1,41 @@
+html, body, .game {
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    margin: 0;
+}
+
+.cnfield {
+    display: block;
+    float: left;
+    padding: 0;
+    width: 70%;
+    height: 95%;
+}
+
+.row {
+    width: 100%;
+    height: 20%;
+    /* hack to remove new line whitespace */
+    font-size: 0;
+}
+
+.word {
+    display: block;
+    float: left;
+    width: 20%;
+    height: 100%;
+    text-align: center;
+    background-color: yellow;
+}
+
+.word p {
+    word-break: break-word;
+}
+
+.controls {
+    display: block;
+    float: left;
+    width: 15%;
+}
+
