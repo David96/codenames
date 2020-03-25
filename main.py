@@ -1,19 +1,18 @@
-from codenames import CodeNames, WIDTH, HEIGHT
-
 import asyncio
 import json
-import websockets
-import uuid
 import random
+import uuid
+import websockets
+
+from codenames import CodeNames, WIDTH, HEIGHT
 
 with open('words.txt') as f:
-    words = [line.strip() for line in f.readlines()]
-GAME=CodeNames(random.sample(words, WIDTH*HEIGHT))
-USERS={}
+    WORDS = [line.strip() for line in f.readlines()]
+GAME = CodeNames(random.sample(WORDS, WIDTH*HEIGHT))
+USERS = {}
 
 def generate_uid():
-    uids = [uid for uid in USERS] if len(USERS) > 0 else []
-    while (uid := uuid.uuid4()) in uids:
+    while uid := uuid.uuid4() in USERS:
         pass
     return uid
 
@@ -57,7 +56,7 @@ async def open_field(uid, index):
     name = USERS[uid][1]
     await notify_users('state')
     await send_message('Field %d:%d was opened by %s' %
-            (index % WIDTH + 1, int(index / HEIGHT) + 1, name))
+                       (index % WIDTH + 1, int(index / HEIGHT) + 1, name))
 
 async def serve(websocket, path):
     try:
