@@ -4,8 +4,11 @@ import asyncio
 import json
 import websockets
 import uuid
+import random
 
-GAME=CodeNames(['word%d' % i for i in range(25)])
+with open('words.txt') as f:
+    words = [line.strip() for line in f.readlines()]
+GAME=CodeNames(random.sample(words, WIDTH*HEIGHT))
 USERS={}
 
 def generate_uid():
