@@ -27,15 +27,47 @@ html, body, .game {
     height: 100%;
     text-align: center;
     background-color: yellow;
+    word-break: break-word;
 }
 
-.word p {
-    word-break: break-word;
+.white {
+    background-color: white;
+}
+
+.red {
+    background-color: red;
+}
+
+.blue {
+    background-color: blue;
+    color: white;
+}
+
+.black {
+    background-color: black;
+    color: white;
+}
+
+.opened {
+    color: transparent !important;
 }
 
 .controls {
     display: block;
     float: left;
     width: 15%;
+}
+
+.messages {
+    max-height: 95vh;
+    overflow: auto;
+}
+
+.hidden {
+    display: none;
+}
+
+.error {
+    color: red;
 }
 
