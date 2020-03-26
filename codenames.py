@@ -11,10 +11,10 @@ BLACK = 3
 
 class CodeNames:
 
-    def __init__(self, words):
+    def __init__(self):
         self.state = []
         self.colours = []
-        self.reset(words)
+        self.words = []
 
     def _generate_random_state(self):
         colour_counts = {}
