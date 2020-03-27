@@ -16,6 +16,11 @@ GAMEMASTERS = []
 
 def reset_game():
     GAMEMASTERS.clear()
+    if len(WORDS_LEFT) < 25:
+        WORDS_LEFT.clear()
+        for word in WORDS:
+            WORDS_LEFT.append(word)
+        print('Words empty, needs new words')
     sample = random.sample(WORDS_LEFT, 25)
     for word in sample:
         WORDS_LEFT.remove(word)
@@ -26,6 +31,7 @@ async def reset(uid, _):
         await send_error(uid, 'You are not a gamemaster!')
     else:
         reset_game()
+        await notify_users('user')
         await notify_users('state')
         await send_message('The game has been reset!')
 
@@ -36,7 +42,8 @@ def user_event():
     return json.dumps(
         {
             'type': 'user',
-            'users': [name for _, name in USERS]
+            'users': [{'name': user[1], 'gamemaster': user in GAMEMASTERS}
+                      for user in USERS]
         })
 
 EVENTS = {
@@ -99,6 +106,7 @@ async def become_master(user, _):
                 'type': 'colours',
                 'colours': GAME.colours
             }))
+        await notify_users('user')
         await send_message('%s has become game master!' % user[1])
 
 ACTIONS = {

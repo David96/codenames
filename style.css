@@ -9,7 +9,7 @@ html, body, .game {
     display: block;
     float: left;
     padding: 0;
-    width: 70%;
+    width: 60%;
     height: 95%;
 }
 
@@ -54,13 +54,33 @@ html, body, .game {
 
 .controls {
     display: block;
+    box-sizing: border-box;
+    padding: 20px;
     float: left;
-    width: 15%;
+    width: 20%;
+}
+
+.controls button {
+    width: 100%;
 }
 
 .messages {
-    max-height: 95vh;
+    height: 50vh;
+}
+
+.users {
+    height: 30vh;
+}
+
+#userlist, #messagelist {
+    max-height: 100%;
     overflow: auto;
+    margin: 0;
+}
+
+#messagelist {
+    list-style: none;
+    padding: 0;
 }
 
 .hidden {

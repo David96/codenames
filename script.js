@@ -20,27 +20,38 @@ document.addEventListener('DOMContentLoaded', function() {
 
         event.preventDefault();
     });
+
+    var become_master = document.getElementById('become_master');
+    become_master.addEventListener('click', () => {
+        if (gamemaster) {
+            ws.send(JSON.stringify({action: 'reset'}));
+        } else {
+            ws.send(JSON.stringify({action: 'become_master'}));
+        }
+    });
 });
 
 function setColour(field, colour, classname) {
-    switch (colour) {
-        case -1:
-            if (!gamemaster) {
-                field.className = "word closed";
-            }
-            break;
-        case WHITE:
-            field.className = classname + " white";
-            break;
-        case RED:
-            field.className = classname + " red";
-            break;
-        case BLUE:
-            field.className = classname + " blue";
-            break;
-        case BLACK:
-            field.className = classname + " black";
-            break;
+    if (!field.classList.contains('opened') || colour == -1) {
+        switch (colour) {
+            case -1:
+                if (!gamemaster) {
+                    field.className = "word closed";
+                }
+                break;
+            case WHITE:
+                field.className = classname + " white";
+                break;
+            case RED:
+                field.className = classname + " red";
+                break;
+            case BLUE:
+                field.className = classname + " blue";
+                break;
+            case BLACK:
+                field.className = classname + " black";
+                break;
+        }
     }
 }
 
@@ -58,6 +69,17 @@ function onMessage(event) {
             break;
         case 'user':
             console.log('Got user message');
+            createUserList(data.users);
+            data.users.forEach((user) => {
+                if (user.name == username) {
+                    if (user.gamemaster && !gamemaster) {
+                        onGameMaster(true);
+                    } else if (!user.gamemaster && gamemaster) {
+                        onGameMaster(false);
+                    }
+                    return;
+                }
+            });
             break;
         case 'colours':
             console.log('Got colours message');
@@ -75,9 +97,20 @@ function onMessage(event) {
             addMessage(data.msg, true);
             break
     }
-};
+}
+
+function onGameMaster(master) {
+    gamemaster = master;
+    var become_master = document.getElementById('become_master');
+    if (master) {
+        become_master.innerHTML = "Reset game";
+    } else {
+        become_master.innerHTML = "Become gamemaster";
+    }
+}
+
 function addMessage(msg, is_error) {
-    var messages = document.getElementsByClassName('messages')[0],
+    var messages = document.getElementById('messagelist'),
         message = document.createElement('li'),
         content = document.createTextNode(msg);
     if (is_error) {
@@ -85,6 +118,20 @@ function addMessage(msg, is_error) {
     }
     message.appendChild(content);
     messages.appendChild(message);
+    messages.scrollTop = messages.scrollHeight;
+}
+function createUserList(users) {
+    var list = document.getElementById('userlist');
+    list.innerText = '';
+    users.forEach((user) => {
+        var li = document.createElement('li');
+        var text = user.name;
+        if (user.gamemaster) {
+            text += " (Gamemaster)";
+        }
+        li.appendChild(document.createTextNode(text));
+        list.appendChild(li);
+    });
 }
 
 function openField(index) {
