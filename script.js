@@ -4,7 +4,8 @@ BLUE = 2
 BLACK = 3
 
 var ws, username,
-    gamemaster = false;
+    gamemaster = false,
+    initialized = false;
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Content loaded');
@@ -14,9 +15,7 @@ document.addEventListener('DOMContentLoaded', function() {
         ws.onopen = onOpen;
         ws.onmessage = onMessage;
         var data = new FormData(form);
-        form.className = 'join hidden';
         username = data.get('name');
-        console.log(username + ' wants to join');
 
         event.preventDefault();
     });
@@ -60,6 +59,9 @@ function onMessage(event) {
     switch (data.type) {
         case 'state':
             console.log('Got state message');
+            if (!initialized) {
+                initGame();
+            }
             words = document.querySelectorAll(".cnfield button")
             console.log(words.length)
             for (i = 0; i < words.length; ++i) {
@@ -141,9 +143,17 @@ function openField(index) {
 function onOpen() {
     console.log('Setting username ' + username);
     ws.send(JSON.stringify({action: "set_name", name: username}));
+}
+
+function initGame() {
+    initialized = true;
     document.getElementsByClassName('controlpanel')[0].className = 'controlpanel';
     words = document.querySelectorAll('.cnfield button');
     for (i = 0; i < words.length; ++i) {
         words[i].addEventListener('click', Function('openField('+i+');'));
     }
-};
+    var form = document.getElementsByClassName('join')[0];
+    var data = new FormData(form);
+    form.className = 'join hidden';
+    username = data.get('name');
+}

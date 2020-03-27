@@ -61,10 +61,18 @@ async def send_message(message):
         msg = json.dumps({'type':'message', 'msg': message})
         await asyncio.wait([socket.send(msg) for socket, _ in USERS])
 
-async def send_error(user, message):
-    await user[0].send(json.dumps({'type':'error', 'msg':message}))
+async def send_error(user, message, error_type="error"):
+    await user[0].send(json.dumps({'type': error_type, 'msg': message}))
+
+def user_exists(name):
+    for _,user in USERS:
+        if name == user:
+            return True
+    return False
 
 async def add_user(websocket, name):
+    if user_exists(name):
+        return None
     user = (websocket, name)
     USERS.append(user)
     await notify_users("user")
@@ -117,9 +125,17 @@ ACTIONS = {
 
 async def serve(websocket, path):
     try:
-        msg = json.loads(await websocket.recv())
-        assert msg['action'] == 'set_name'
-        user = await add_user(websocket, msg['name'])
+        user = None
+        async for message in websocket:
+            data = json.loads(message)
+            if 'action' not in data or data['action'] != 'set_name':
+                await send_error((websocket, ''), 'First message must be a set_name action!')
+                await websocket.close()
+                return
+            user = await add_user(websocket, data['name'])
+            if user:
+                break
+            await send_error((websocket, ''), 'Name is already taken!');
 
         await websocket.send(state_event())
         async for message in websocket:
@@ -131,7 +147,8 @@ async def serve(websocket, path):
 
     # TODO: proper error handling?!
     finally:
-        await remove_user(user)
+        if user:
+            await remove_user(user)
 
 start_server = websockets.serve(serve, "localhost", 6789)
 
