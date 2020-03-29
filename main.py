@@ -4,7 +4,7 @@ import random
 import uuid
 import websockets
 
-from codenames import CodeNames, Player, WIDTH, HEIGHT
+from codenames import CodeNames, Player, WIDTH, HEIGHT, RED, BLUE
 
 with open('words.txt') as f:
     WORDS = [line.strip() for line in f.readlines()]
@@ -101,6 +101,10 @@ async def open_field(user, data):
             await send_message('%s (%d:%d) was opened by %s' %
                     (GAME.state[index]['word'],
                         index % WIDTH + 1, int(index / HEIGHT) + 1, user))
+            if GAME.winner > -1:
+                await notify_users('gameover')
+                await send_message('Team %s wins the game!'
+                        % ('red' if GAME.winner == RED else 'blue'))
 
 async def become_master(user, _):
     if GAME.players[user].gamemaster:
@@ -117,9 +121,19 @@ async def become_master(user, _):
         await notify_users('user')
         await send_message('%s has become game master!' % user)
 
+async def set_colour(user, data):
+    if not data['colour'] or (data['colour'] != RED and data['colour'] != BLUE):
+        send_error(USERS[user], 'Invalid colour!')
+        return
+    USERS[user].colour = data['colour']
+    await notify_users('user')
+    await send_message('%s is now part of team %s' %
+                       (user, 'red' if data['colour'] == RED else 'blue'))
+
 ACTIONS = {
     'open': open_field,
     'become_master': become_master,
+    'set_colour': set_colour,
     'reset': reset
 }
 
@@ -135,7 +149,7 @@ async def serve(websocket, path):
             user = await add_user(websocket, data['name'])
             if user:
                 break
-            await send_error(websocket, 'Name is already taken!');
+            await send_error(websocket, 'Name is already taken!')
 
         await websocket.send(state_event())
         async for message in websocket:
