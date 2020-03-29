@@ -28,6 +28,19 @@ document.addEventListener('DOMContentLoaded', function() {
             ws.send(JSON.stringify({action: 'become_master'}));
         }
     });
+    var choose_red = document.getElementById('choose_red');
+    var choose_blue = document.getElementById('choose_blue');
+
+    choose_red.addEventListener('click', () => {
+        ws.send(JSON.stringify({action: 'set_colour', colour: RED}));
+        choose_red.disabled = true;
+        choose_blue.disabled = false;
+    });
+    choose_blue.addEventListener('click', () => {
+        ws.send(JSON.stringify({action: 'set_colour', colour: BLUE}));
+        choose_red.disabled = false;
+        choose_blue.disabled = true;
+    });
 });
 
 function setColour(field, colour, classname) {
@@ -130,6 +143,12 @@ function createUserList(users) {
         var text = user.name;
         if (user.gamemaster) {
             text += " (Gamemaster)";
+        }
+        console.log('Team: ' + user.team);
+        if (user.team == RED) {
+            li.className = 'team_red';
+        } else if (user.team == BLUE) {
+            li.className = 'team_blue';
         }
         li.appendChild(document.createTextNode(text));
         list.appendChild(li);

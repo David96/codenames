@@ -35,11 +35,12 @@ html, body, .game {
 }
 
 .red {
-    background-color: red;
+    background-color: darkred;
+    color: white;
 }
 
 .blue {
-    background-color: blue;
+    background-color: darkblue;
     color: white;
 }
 
@@ -87,7 +88,16 @@ html, body, .game {
     display: none;
 }
 
-.error {
+.error, .team_red {
     color: red;
 }
 
+.team_blue {
+    color: blue;
+}
+
+.colour_chooser button {
+    width: 49%;
+    padding-top: 10px;
+    padding-bottom: 10px;
+}

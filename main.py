@@ -69,8 +69,8 @@ async def send_message(message):
         msg = json.dumps({'type':'message', 'msg': message})
         await asyncio.wait([socket.send(msg) for socket in USERS.values()])
 
-async def send_error(socket, message, error_type="error"):
-    await socket.send(json.dumps({'type': error_type, 'msg': message}))
+async def send_error(socket, message, error_type=''):
+    await socket.send(json.dumps({'type': 'error', 'error': error_type, 'msg': message}))
 
 async def add_user(websocket, name):
     if name in GAME.players:
@@ -122,12 +122,12 @@ async def become_master(user, _):
         await send_message('%s has become game master!' % user)
 
 async def set_colour(user, data):
-    if not data['colour'] or (data['colour'] != RED and data['colour'] != BLUE):
-        send_error(USERS[user], 'Invalid colour!')
+    if 'colour' not in data or (data['colour'] != RED and data['colour'] != BLUE):
+        send_error(USERS[user], 'Invalid colour!', 'invalid_colour')
         return
-    USERS[user].colour = data['colour']
+    GAME.players[user].colour = data['colour']
     await notify_users('user')
-    await send_message('%s is now part of team %s' %
+    await send_message('%s is now part of team %s.' %
                        (user, 'red' if data['colour'] == RED else 'blue'))
 
 ACTIONS = {
@@ -143,13 +143,14 @@ async def serve(websocket, path):
         async for message in websocket:
             data = json.loads(message)
             if 'action' not in data or data['action'] != 'set_name':
-                await send_error(websocket, 'First message must be a set_name action!')
+                await send_error(websocket,
+                                 'First message must be a set_name action!', 'no_set_name')
                 await websocket.close()
                 return
             user = await add_user(websocket, data['name'])
             if user:
                 break
-            await send_error(websocket, 'Name is already taken!')
+            await send_error(websocket, 'Name is already taken!', 'name_taken')
 
         await websocket.send(state_event())
         async for message in websocket:
@@ -157,7 +158,8 @@ async def serve(websocket, path):
             if data['action'] in ACTIONS:
                 await ACTIONS[data['action']](user, data)
             else:
-                await send_error(websocket, '%s is not a valid action!' % data['action'])
+                await send_error(websocket, '%s is not a valid action!' % data['action'],
+                                 'invalid_action')
 
     # TODO: proper error handling?!
     finally:

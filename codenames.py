@@ -67,7 +67,7 @@ class CodeNames:
 
     def check_gameover(self, index, name):
         if self.colours[index] == BLACK:
-            self.winner = RED if self.players[name].colour == RED else BLUE
+            self.winner = RED if self.players[name].colour == BLUE else BLUE
             self.reason = REASON_BLACK
         elif self.blue_left == 0:
             self.winner = BLUE
