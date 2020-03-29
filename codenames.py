@@ -9,19 +9,33 @@ RED = 1
 BLUE = 2
 BLACK = 3
 
+REASON_BLACK = 1
+REASON_ALL_OPEN = 2
+
+class Player:
+
+    def __init__(self, name, colour, gamemaster):
+        self.name = name
+        self.colour = colour
+        self.gamemaster = gamemaster
+
 class CodeNames:
 
     def __init__(self):
         self.state = []
         self.colours = []
         self.words = []
+        self.players = {}
+        self.blue_left = 0
+        self.red_left = 0
+        self.winner = -1
+        self.reason = -1
 
-    def _generate_random_state(self):
+    def _generate_random_state(self, red_begins):
         colour_counts = {}
         colour_counts[WHITE] = 7
-        # TODO: take turns
-        colour_counts[BLUE] = 8
-        colour_counts[RED] = 9
+        self.blue_left = colour_counts[BLUE] = 8 if red_begins else 9
+        self.red_left = colour_counts[RED] = 9 if red_begins else 8
         colour_counts[BLACK] = 1
         self.state = []
         self.colours = []
@@ -37,26 +51,36 @@ class CodeNames:
                                               colour_counts[BLACK] * [BLACK], 1)[0])
             colour_counts[self.colours[-1]] -= 1
 
-    def reset(self, words):
+    def reset(self, words, red_begins=True):
         assert len(words) == WIDTH*HEIGHT
+        for player in self.players.values():
+            player.gamemaster = False
+        self.winner = self.reason = -1
         self.words = words
-        self._generate_random_state()
+        self._generate_random_state(red_begins)
 
-    def _get_field_of_list(self, l, x, y):
-        return l[y*WIDTH + x]
+    def add_player(self, name, colour=-1, gamemaster=False):
+        self.players[name] = Player(name, colour, gamemaster)
 
-    def _set_field_of_list(self, l, x, y, v):
-        l[y*WIDTH + x] = v
+    def gamemaster_count(self):
+        return len([player for player in self.players.values() if player.gamemaster])
 
-    def get_field(self, x, y):
-        return self._get_field_of_list(self.state, x, y)
+    def check_gameover(self, index, name):
+        if self.colours[index] == BLACK:
+            self.winner = RED if self.players[name].colour == RED else BLUE
+            self.reason = REASON_BLACK
+        elif self.blue_left == 0:
+            self.winner = BLUE
+            self.reason = REASON_ALL_OPEN
+        elif self.red_left == 0:
+            self.winner = RED
+            self.reason = REASON_ALL_OPEN
 
-    def set_field(self, x, y, value):
-        self._set_field_of_list(self.state, x, y, value)
-
-    def get_word(self, x, y):
-        return self._get_field_of_list(self.words, x, y)
-
-    def open_field(self, index):
+    def open_field(self, index, username):
         self.state[index]['colour'] = self.colours[index]
+        if self.colours[index] == BLUE:
+            self.blue_left -= 1
+        elif self.colours[index] == RED:
+            self.red_left -= 1
+        self.check_gameover(index, username)
         return self.colours[index]

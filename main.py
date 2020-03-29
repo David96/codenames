@@ -4,18 +4,17 @@ import random
 import uuid
 import websockets
 
-from codenames import CodeNames, WIDTH, HEIGHT
+from codenames import CodeNames, Player, WIDTH, HEIGHT
 
 with open('words.txt') as f:
     WORDS = [line.strip() for line in f.readlines()]
 
 WORDS_LEFT = list(WORDS)
 GAME = CodeNames()
-USERS = []
+USERS = {}
 GAMEMASTERS = []
 
 def reset_game():
-    GAMEMASTERS.clear()
     if len(WORDS_LEFT) < 25:
         WORDS_LEFT.clear()
         for word in WORDS:
@@ -26,9 +25,9 @@ def reset_game():
         WORDS_LEFT.remove(word)
     GAME.reset(sample)
 
-async def reset(uid, _):
-    if uid is not None and uid not in GAMEMASTERS:
-        await send_error(uid, 'You are not a gamemaster!')
+async def reset(user, _):
+    if not GAME.players[user].gamemaster:
+        await send_error(USERS[user], 'You are not a gamemaster!')
     else:
         reset_game()
         await notify_users('user')
@@ -42,81 +41,81 @@ def user_event():
     return json.dumps(
         {
             'type': 'user',
-            'users': [{'name': user[1], 'gamemaster': user in GAMEMASTERS}
-                      for user in USERS]
+            'users': [{'name': user.name, 'gamemaster': user.gamemaster, 'team': user.colour }
+                      for user in GAME.players.values()]
+        })
+
+def gameover_event():
+    return json.dumps(
+        {
+            'type': 'gameover',
+            'winner': GAME.winner,
+            'reason': GAME.reason
         })
 
 EVENTS = {
     'user': user_event,
-    'state': state_event
+    'state': state_event,
+    'gameover': gameover_event
 }
 
 async def notify_users(msg_type):
     if USERS:
         message = EVENTS[msg_type]()
-        await asyncio.wait([socket.send(message) for socket, _ in USERS])
+        await asyncio.wait([socket.send(message) for socket in USERS.values()])
 
 async def send_message(message):
     if USERS:
         msg = json.dumps({'type':'message', 'msg': message})
-        await asyncio.wait([socket.send(msg) for socket, _ in USERS])
+        await asyncio.wait([socket.send(msg) for socket in USERS.values()])
 
-async def send_error(user, message, error_type="error"):
-    await user[0].send(json.dumps({'type': error_type, 'msg': message}))
-
-def user_exists(name):
-    for _,user in USERS:
-        if name == user:
-            return True
-    return False
+async def send_error(socket, message, error_type="error"):
+    await socket.send(json.dumps({'type': error_type, 'msg': message}))
 
 async def add_user(websocket, name):
-    if user_exists(name):
+    if name in GAME.players:
         return None
-    user = (websocket, name)
-    USERS.append(user)
+    GAME.add_player(name)
+    USERS[name] = websocket
     await notify_users("user")
     await send_message('%s joined the game!' % name)
-    return user
+    return name
 
 async def remove_user(user):
-    name = user[1]
-    if user in GAMEMASTERS:
-        GAMEMASTERS.remove(user)
-    USERS.remove(user)
+    del GAME.players[user]
+    del USERS[user]
     await notify_users('user')
-    await send_message('%s left the game.' % name)
+    await send_message('%s left the game.' % user)
 
 async def open_field(user, data):
-    if user in GAMEMASTERS:
-        await send_error(user, 'A gamemaster can\'t open fields!')
+    if GAME.players[user].gamemaster:
+        await send_error(USERS[user], 'A gamemaster can\'t open fields!')
     else:
         index = data['index']
         if GAME.state[index]['colour'] > -1:
-            await send_error(user, 'Field %d:%d is already open!' %
+            await send_error(USERS[user], 'Field %d:%d is already open!' %
                            (index % WIDTH + 1, int(index / HEIGHT) + 1))
         else:
-            GAME.open_field(index)
-            name = user[1]
+            GAME.open_field(index, user)
             await notify_users('state')
             await send_message('%s (%d:%d) was opened by %s' %
                     (GAME.state[index]['word'],
-                        index % WIDTH + 1, int(index / HEIGHT) + 1, name))
+                        index % WIDTH + 1, int(index / HEIGHT) + 1, user))
 
 async def become_master(user, _):
-    if user in GAMEMASTERS:
-        await send_error(user, 'You are already a gamemaster!')
-    elif len(GAMEMASTERS) >= 2:
-        await send_error(user, 'There are already two gamemasters!')
+    if GAME.players[user].gamemaster:
+        await send_error(USERS[user], 'You are already a gamemaster!')
+    elif GAME.gamemaster_count() >= 2:
+        await send_error(USERS[user], 'There are already two gamemasters!')
     else:
-        GAMEMASTERS.append(user)
-        await user[0].send(json.dumps(
+        GAME.players[user].gamemaster = True
+        await USERS[user].send(json.dumps(
             {
                 'type': 'colours',
                 'colours': GAME.colours
             }))
         await notify_users('user')
-        await send_message('%s has become game master!' % user[1])
+        await send_message('%s has become game master!' % user)
 
 ACTIONS = {
     'open': open_field,
@@ -130,13 +129,13 @@ async def serve(websocket, path):
         async for message in websocket:
             data = json.loads(message)
             if 'action' not in data or data['action'] != 'set_name':
-                await send_error((websocket, ''), 'First message must be a set_name action!')
+                await send_error(websocket, 'First message must be a set_name action!')
                 await websocket.close()
                 return
             user = await add_user(websocket, data['name'])
             if user:
                 break
-            await send_error((websocket, ''), 'Name is already taken!');
+            await send_error(websocket, 'Name is already taken!');
 
         await websocket.send(state_event())
         async for message in websocket:
@@ -144,7 +143,7 @@ async def serve(websocket, path):
             if data['action'] in ACTIONS:
                 await ACTIONS[data['action']](user, data)
             else:
-                await send_error(user, '%s is not a valid action!' % data['action'])
+                await send_error(websocket, '%s is not a valid action!' % data['action'])
 
     # TODO: proper error handling?!
     finally:
