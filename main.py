@@ -99,8 +99,9 @@ async def open_field(user, data):
             GAME.open_field(index)
             name = user[1]
             await notify_users('state')
-            await send_message('Field %d:%d was opened by %s' %
-                               (index % WIDTH + 1, int(index / HEIGHT) + 1, name))
+            await send_message('%s (%d:%d) was opened by %s' %
+                    (GAME.state[index]['word'],
+                        index % WIDTH + 1, int(index / HEIGHT) + 1, name))
 
 async def become_master(user, _):
     if user in GAMEMASTERS:
