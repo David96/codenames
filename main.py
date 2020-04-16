@@ -147,6 +147,9 @@ async def serve(websocket, path):
                                  'First message must be a set_name action!', 'no_set_name')
                 await websocket.close()
                 return
+            if not data['name']:
+                await send_error(websocket, 'Name must not be empty!', 'empty_name')
+                continue
             user = await add_user(websocket, data['name'])
             if user:
                 break
